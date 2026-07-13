@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+SESSION="peel-2"
+BASE_DIR="$HOME/relay-commerce"
+
+kill_session() {
+  if tmux has-session -t "$SESSION" 2>/dev/null; then
+    tmux kill-session -t "$SESSION"
+    echo "Killed session $SESSION"
+  else
+    echo "No session $SESSION to kill"
+  fi
+}
+
+case "$1" in
+  -k|--kill)
+    kill_session
+    exit 0
+    ;;
+  -r|--restart)
+    kill_session
+    ;;
+  "")
+    if tmux has-session -t "$SESSION" 2>/dev/null; then
+      tmux attach -t "$SESSION"
+      exit 0
+    fi
+    ;;
+  *)
+    echo "Usage: tmux-peel2 [-k|--kill] [-r|--restart]"
+    exit 1
+    ;;
+esac
+
+tmux new-session -d -s "$SESSION" -n p1 -c "$BASE_DIR/p1"
+
+for win in p2 p3 p4 p5; do
+  tmux new-window -t "$SESSION" -n "$win" -c "$BASE_DIR/$win"
+done
+
+tmux new-window -t "$SESSION" -n peel2-rails -c "$BASE_DIR/peel2-rails"
+tmux new-window -t "$SESSION" -n peel-airflow -c "$BASE_DIR/peel-airflow"
+
+for win in p1 p2 p3 p4 p5 peel2-rails; do
+  left=$(tmux list-panes -t "$SESSION:$win" -F '#{pane_id}')
+  tmux split-window -h -t "$left" -c "$BASE_DIR/$win"
+  right=$(tmux list-panes -t "$SESSION:$win" -F '#{pane_id}' | grep -v "$left")
+  tmux send-keys -t "$right" "dev" Enter
+  tmux send-keys -t "$left" "claude" Enter
+done
+
+tmux select-window -t "$SESSION:p1"
+tmux attach -t "$SESSION"

@@ -1,0 +1,29 @@
+#!/bin/bash
+
+cd ~/relay-commerce || exit 1
+
+SESSION="peel"
+
+# Attach to existing session if it exists
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+  tmux attach -t "$SESSION"
+  exit 0
+fi
+
+# Create new session with first window
+tmux new-session -d -s "$SESSION" -n p1
+
+# Create remaining windows
+for name in p2 p3 p4 p5 peel2-rails; do
+  tmux new-window -t "$SESSION" -n "$name"
+done
+
+# For each window: split horizontally and run dev in right pane
+for name in p1 p2 p3 p4 p5 peel2-rails; do
+  tmux split-window -t "$SESSION:$name" -h
+  tmux send-keys -t "$SESSION:$name.1" "dev" Enter
+done
+
+# Select first window and attach
+tmux select-window -t "$SESSION:p1"
+tmux attach -t "$SESSION"
