@@ -1,0 +1,15 @@
+#!/bin/bash
+# Resize empty edge panes back to width 1 after terminal resize
+# Edge panes with no content are treated as spacers
+
+tmux list-panes -F '#{pane_id} #{pane_width} #{pane_at_left} #{pane_at_right}' 2>/dev/null | \
+while read pane_id width at_left at_right; do
+  # Only check edge panes that are wider than 1
+  if [ "$width" -gt 1 ] && { [ "$at_left" = "1" ] || [ "$at_right" = "1" ]; }; then
+    # Capture pane content and check if empty
+    content=$(tmux capture-pane -t "$pane_id" -p 2>/dev/null | tr -d '[:space:]')
+    if [ -z "$content" ]; then
+      tmux resize-pane -t "$pane_id" -x 1 2>/dev/null
+    fi
+  fi
+done

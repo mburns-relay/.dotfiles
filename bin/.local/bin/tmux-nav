@@ -1,0 +1,73 @@
+#!/bin/bash
+exec >/dev/null 2>&1
+
+direction="$1"
+start=$(tmux display -p '#{pane_id}')
+
+# Go to far right, skip separator
+goto_far_right() {
+  local prev="" curr=$(tmux display -p '#{pane_id}')
+  while [ "$prev" != "$curr" ]; do
+    prev="$curr"
+    tmux select-pane -R
+    curr=$(tmux display -p '#{pane_id}')
+  done
+  [ "$(tmux display -p '#{pane_width}')" -eq 1 ] && tmux select-pane -L
+}
+
+# Go to far left, skip separator
+goto_far_left() {
+  local prev="" curr=$(tmux display -p '#{pane_id}')
+  while [ "$prev" != "$curr" ]; do
+    prev="$curr"
+    tmux select-pane -L
+    curr=$(tmux display -p '#{pane_id}')
+  done
+  [ "$(tmux display -p '#{pane_width}')" -eq 1 ] && tmux select-pane -R
+}
+
+# Navigate
+tmux select-pane $direction
+current=$(tmux display -p '#{pane_id}')
+
+# Handle navigation result
+if [ "$current" = "$start" ]; then
+  # Didn't move - at edge without separator, wrap
+  case "$direction" in
+    -L) goto_far_right ;;
+    -R) goto_far_left ;;
+  esac
+elif [ "$(tmux display -p '#{pane_width}')" -eq 1 ]; then
+  # Landed on separator - try to skip or wrap
+  sep="$current"
+  tmux select-pane $direction
+  if [ "$(tmux display -p '#{pane_id}')" = "$sep" ]; then
+    # Couldn't skip - wrap
+    case "$direction" in
+      -L) goto_far_right ;;
+      -R) goto_far_left ;;
+    esac
+  fi
+fi
+
+# Ensure we're not on a separator
+w=$(tmux display -p '#{pane_width}')
+if [ "$w" -eq 1 ]; then
+  tmux select-pane -R
+  w=$(tmux display -p '#{pane_width}')
+  [ "$w" -eq 1 ] && tmux select-pane -L
+  w=$(tmux display -p '#{pane_width}')
+  [ "$w" -eq 1 ] && tmux select-pane -t "$start"
+fi
+
+# Create separator at edge if needed
+current=$(tmux display -p '#{pane_id}')
+at_left=$(tmux display -p '#{pane_at_left}')
+at_right=$(tmux display -p '#{pane_at_right}')
+
+case "$direction" in
+  -L) [ "$at_left" = "1" ] && { tmux split-window -h -b -l 1 "exec cat"; tmux select-pane -t "$current"; } ;;
+  -R) [ "$at_right" = "1" ] && { tmux split-window -h -l 1 "exec cat"; tmux select-pane -t "$current"; } ;;
+esac
+
+exit 0
