@@ -212,10 +212,14 @@ be dedicated to the **agent fleet** — `dot agents up 5` fills a tiled grid of
 Ghostty windows you flip to with one `alt+N`.
 
 ### sketchybar (top bar)
-A real tiling-WM status bar that mirrors the prompt's theme: AeroSpace workspace
-indicators on the left; git/AWS-profile/clock and a **red/green last-command**
-mirror on the right. Config in `sketchybar/` (`~/.config/sketchybar/`). It's the
-"status line" idea (req 18) lifted to the whole screen.
+A gruvbox-themed tiling-WM status bar: AeroSpace **workspace pills** + front app
+on the left; **clock** and **battery** on the right. Config in `sketchybar/`
+(`~/.config/sketchybar/`, with `colors.sh` + `plugins/`).
+
+Per-shell status (full path, git branch, exit code, AWS profile) deliberately
+stays in the **Starship prompt** and **tmux status line**, where it's accurate —
+a menu bar can't see a given shell's exit codes reliably, so req 18's red/green
+lives in the prompt, not here.
 
 ### Karabiner-Elements (Caps → Esc / Ctrl)
 Your existing dual-role rule — *tapped* Caps = **Escape**, *held* Caps = **Left
