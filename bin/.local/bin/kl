@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# kl <pid|pattern> ... — kill with escalating signals.
+if [[ $# -eq 0 ]]; then
+  echo "Usage: kl <pid|pattern> [pid|pattern...]" >&2; exit 64
+fi
+
+killing_me_softly() {
+  local pid=$1 sig=$2
+  echo "kill -$sig $pid"
+  kill -"$sig" "$pid" 2>/dev/null || return 0
+  for _ in {1..20}; do
+    kill -0 "$pid" 2>/dev/null || return 0
+    sleep 0.05
+  done
+  return 1
+}
+
+kill_escalate() {
+  local pid=$1
+  for sig in TERM INT HUP QUIT KILL; do
+    kill -0 "$pid" 2>/dev/null || return 0
+    killing_me_softly "$pid" "$sig" && return 0
+  done
+  return 1
+}
+
+get_pids_from_pattern() {
+  ps aux | grep -i "$1" | grep -v -e grep -e "$0" | awk '{print $2}'
+}
+
+failed=0
+for arg in "$@"; do
+  if [[ "$arg" =~ ^[0-9]+$ ]]; then
+    pids=("$arg")
+  else
+    readarray -t pids < <(get_pids_from_pattern "$arg")
+    if [[ ${#pids[@]} -eq 0 ]]; then
+      echo "No processes matching pattern: $arg" >&2; failed=1; continue
+    fi
+  fi
+  for pid in "${pids[@]}"; do
+    kill_escalate "$pid" || { echo "Failed to kill PID $pid ($arg)" >&2; failed=1; }
+  done
+done
+exit $failed

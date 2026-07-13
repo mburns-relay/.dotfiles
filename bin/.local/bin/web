@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Open the localhost URL for the current worktree (pN -> 3000+N; main -> 3000).
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo" >&2; exit 1; }
+dir=$(basename "$root")
+offset=0
+[[ "$dir" =~ ^p([0-9]+)$ ]] && offset="${BASH_REMATCH[1]}"
+port=$((3000 + offset))
+open -a Safari "http://localhost:$port"

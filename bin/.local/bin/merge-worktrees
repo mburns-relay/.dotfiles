@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# merge-worktrees: merge feature branches back to each worktree's home branch.
+# Home branch = the worktree's dir name (pN); main checkout merges to main.
+# Usage: merge-worktrees [--all] [--dry-run]
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+DRY_RUN=false; PROCESS_ALL=false; SKIP_CURRENT=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --all) PROCESS_ALL=true; shift ;;
+    --dry-run) DRY_RUN=true; shift ;;
+    --skip-current) SKIP_CURRENT=true; shift ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
+  esac
+done
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# Unified pN convention: a pN worktree's home branch is "pN"; anything else -> main.
+get_worktree_main_branch() {
+  local dir_name; dir_name=$(basename "$1")
+  if [[ "$dir_name" =~ ^p[0-9]+$ ]]; then echo "$dir_name"; else echo "main"; fi
+}
+
+has_uncommitted_changes() { ! git diff-index --quiet HEAD -- 2>/dev/null; }
+
+merge_current_worktree() {
+  local worktree_path="$1"
+  local main_branch; main_branch=$(get_worktree_main_branch "$worktree_path")
+  local current_branch; current_branch=$(git rev-parse --abbrev-ref HEAD)
+  local dir_name; dir_name=$(basename "$worktree_path")
+
+  log_info "Processing: $dir_name (branch: $current_branch -> $main_branch)"
+  if [[ "$current_branch" == "$main_branch" ]]; then
+    log_warn "Already on home branch ($main_branch), skipping"; return 0
+  fi
+  if has_uncommitted_changes; then
+    log_error "Uncommitted changes in $dir_name, skipping"; return 1
+  fi
+  if $DRY_RUN; then
+    log_info "[DRY RUN] Would merge $current_branch into $main_branch"; return 0
+  fi
+
+  log_info "Fetching origin..."; git fetch origin 2>/dev/null || true
+  log_info "Rebasing $current_branch onto $main_branch..."
+  if ! git rebase "$main_branch" 2>/dev/null; then
+    log_error "Rebase conflicts in $dir_name"; git rebase --abort 2>/dev/null || true; return 1
+  fi
+  log_info "Checking out $main_branch..."; git checkout "$main_branch"
+  log_info "Merging $current_branch into $main_branch..."
+  if ! git merge --ff-only "$current_branch" 2>/dev/null; then
+    log_warn "Fast-forward not possible, attempting regular merge..."
+    if ! git merge --no-edit "$current_branch"; then
+      log_error "Merge conflicts in $dir_name"; git merge --abort 2>/dev/null || true
+      git checkout "$current_branch"; return 1
+    fi
+  fi
+  log_info "Deleting feature branch $current_branch..."
+  git branch -d "$current_branch" 2>/dev/null || true
+  if command -v tmux &>/dev/null && [[ -n "${TMUX:-}" ]]; then
+    tmux rename-window "$main_branch"
+  fi
+  log_success "Merged $current_branch into $main_branch in $dir_name"
+}
+
+main() {
+  local current_worktree; current_worktree=$(git rev-parse --show-toplevel 2>/dev/null)
+  [[ -z "$current_worktree" ]] && { log_error "Not in a git repository"; exit 1; }
+
+  if ! $SKIP_CURRENT; then
+    cd "$current_worktree"; merge_current_worktree "$current_worktree" || true
+  fi
+
+  if $PROCESS_ALL && ! $SKIP_CURRENT; then
+    log_info "Processing other worktrees..."
+    while IFS= read -r line; do
+      local wt_path; wt_path=$(echo "$line" | awk '{print $1}')
+      [[ "$wt_path" == "$current_worktree" || ! -d "$wt_path" ]] && continue
+      (cd "$wt_path" && merge_current_worktree "$wt_path") || true
+    done < <(git worktree list)
+    log_success "Finished processing all worktrees"
+  fi
+}
+main

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# -lt 1 ]] && { echo "Usage: rename-tmux-window <name>"; exit 1; }
+[[ -z "${TMUX:-}" ]] && { echo "Not in a tmux session"; exit 1; }
+tmux rename-window -t "$TMUX_PANE" "$1"

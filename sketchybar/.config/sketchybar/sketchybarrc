@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Minimal sketchybar (phase 1 stub). Shows AeroSpace workspaces + clock.
+# Phase 2: mirror the prompt theme (red/green last-command, git, AWS profile).
+
+sketchybar --bar height=32 position=top color=0xff1a1a2e padding_left=8 padding_right=8
+
+sketchybar --default icon.font="JetBrainsMono Nerd Font:Bold:14.0" \
+                     label.font="JetBrainsMono Nerd Font:Semibold:13.0" \
+                     icon.color=0xffffffff label.color=0xffffffff \
+                     padding_left=6 padding_right=6
+
+# --- AeroSpace workspace indicators ---
+sketchybar --add event aerospace_workspace_change
+for wid in 1 2 3 4 5 6 A B S; do
+  sketchybar --add item "space.$wid" left \
+             --set "space.$wid" label="$wid" click_script="aerospace workspace $wid" \
+             --subscribe "space.$wid" aerospace_workspace_change
+done
+
+# --- Clock (right) ---
+sketchybar --add item clock right \
+           --set clock update_freq=10 script='sketchybar --set clock label="$(date "+%a %d %b %H:%M")"'
+
+sketchybar --update

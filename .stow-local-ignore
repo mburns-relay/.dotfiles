@@ -1,0 +1,10 @@
+# Top-level repo meta — never symlink these into $HOME
+README\.md
+LICENSE
+Brewfile
+bootstrap\.sh
+docs
+\.git
+\.gitignore
+\.stow-local-ignore
+\.github

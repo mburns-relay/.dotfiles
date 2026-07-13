@@ -1,0 +1,51 @@
+[user]
+	name = Mark Burns
+	email = mburns-relay@users.noreply.github.com
+
+[init]
+	defaultBranch = main
+
+[core]
+	pager = delta
+	excludesfile = ~/.config/git/ignore
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
+	line-numbers = true
+	side-by-side = false
+
+[merge]
+	conflictstyle = zdiff3
+[diff]
+	colorMoved = default
+	algorithm = histogram
+
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true
+	autosquash = true
+[fetch]
+	prune = true
+[push]
+	default = current
+	autoSetupRemote = true
+
+[commit]
+	# Biometric signing (phase: enable once the 1Password SSH agent or a
+	# Keychain-stored key is configured — then uncomment):
+	# gpgsign = true
+[gpg]
+	format = ssh
+
+[alias]
+	st = status -sb
+	co = checkout
+	br = branch
+	lg = log --oneline --graph --decorate --all
+	last = log -1 HEAD --stat
+	unstage = reset HEAD --
+	amend = commit --amend --no-edit

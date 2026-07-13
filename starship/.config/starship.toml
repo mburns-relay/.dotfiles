@@ -1,0 +1,38 @@
+# Two-line prompt (req 18/19):
+#  - line 1: full path + git + aws + status
+#  - line 2: the input, on its own line, so a triple-click (line-select) copies
+#    ONLY the command, never the prompt. OSC 133 (shell integration) marks the
+#    zones so terminals can also "copy last command" exactly.
+add_newline = true
+
+format = """
+$directory$git_branch$git_status$aws$cmd_duration$line_break$character"""
+
+# Full path, always — no truncation.
+[directory]
+truncation_length = 0
+truncate_to_repo = false
+style = "bold cyan"
+
+# Red ❯ on failure, green ❯ on success. This is the status indicator.
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold green)"
+
+[git_branch]
+symbol = " "
+style = "bold purple"
+
+[git_status]
+style = "bold yellow"
+
+[aws]
+format = 'on [$symbol($profile )]($style)'
+symbol = "☁️  "
+style = "bold orange"
+
+[cmd_duration]
+min_time = 2000
+format = "took [$duration]($style) "
+style = "dimmed white"

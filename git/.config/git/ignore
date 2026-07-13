@@ -1,0 +1,10 @@
+# Global gitignore
+.DS_Store
+*.swp
+*.swo
+tags
+.idea/
+.vscode/
+*.log
+node_modules/
+.direnv/

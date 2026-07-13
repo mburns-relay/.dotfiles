@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Filter stdin to the lines that name existing paths.
+while IFS= read -r filename; do
+  [[ -e "$filename" ]] && echo "$filename"
+done

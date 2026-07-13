@@ -1,0 +1,23 @@
+# Ghostty — GPU terminal. Config is reloaded with cmd+shift+,
+
+font-family = "JetBrainsMono Nerd Font"
+font-size = 14
+theme = "light:Gruvbox Light,dark:Gruvbox Dark"
+
+# Shell integration provides OSC 133 prompt marking (needed so the terminal
+# knows prompt vs command zones -> exact "copy command" / semantic jumps).
+shell-integration = detect
+shell-integration-features = cursor,sudo,title
+
+# Keep Option as a real Alt so AeroSpace's alt+hjkl bindings work globally.
+# (AeroSpace intercepts them before Ghostty; this just avoids composing chars.)
+macos-option-as-alt = true
+
+# The Kitty keyboard protocol lets Ctrl-h be distinct from Backspace, so our
+# Ctrl+hjkl nav layer is unambiguous. Ghostty negotiates this automatically.
+
+window-padding-x = 6
+window-padding-y = 6
+macos-titlebar-style = tabs
+mouse-hide-while-typing = true
+copy-on-select = clipboard

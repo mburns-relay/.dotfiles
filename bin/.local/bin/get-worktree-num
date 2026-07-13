@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Print the worktree number (from a pN dir), or nothing. Uses the worktree ROOT
+# (not $PWD) so it works from any subdirectory.
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 1
+dir=$(basename "$root")
+[[ "$dir" =~ ^p([0-9]+)$ ]] && echo "${BASH_REMATCH[1]}"

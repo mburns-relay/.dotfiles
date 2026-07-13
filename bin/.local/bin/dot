@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# dot — single entry point for living with these dotfiles.
+
+DOTFILES="${DOTFILES:-$HOME/.dotfiles}"
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
+info() { echo -e "${GREEN}dot:${NC} $*"; }
+warn() { echo -e "${YELLOW}dot:${NC} $*"; }
+err()  { echo -e "${RED}dot:${NC} $*" >&2; }
+
+# Stow packages = visible top-level dirs, minus repo meta (hidden dirs excluded).
+packages() {
+  find "$DOTFILES" -mindepth 1 -maxdepth 1 -type d \
+    ! -name '.*' ! -name 'docs' -exec basename {} \;
+}
+
+cmd_update() {
+  cd "$DOTFILES"
+  if git rev-parse --git-dir >/dev/null 2>&1 && git remote | grep -q .; then
+    info "pulling..."; git pull --ff-only || warn "pull skipped"
+  fi
+  if command -v brew >/dev/null; then info "brew bundle..."; brew bundle --file "$DOTFILES/Brewfile" || true; fi
+  info "restowing..."; for p in $(packages); do stow -d "$DOTFILES" -t "$HOME" --restow "$p"; done
+  command -v mise >/dev/null && { info "mise install..."; mise install || true; }
+  if [[ -d "$HOME/.config/nvim" ]]; then
+    info "nvim sync..."; nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
+  fi
+  info "done."
+}
+
+cmd_doctor() {
+  local ok=0
+  echo "== tools =="
+  for t in brew stow mise starship tmux nvim fzf rg fd bat eza zoxide direnv delta git gh; do
+    if command -v "$t" >/dev/null; then echo -e "  ${GREEN}✓${NC} $t"; else echo -e "  ${RED}✗${NC} $t (missing)"; ok=1; fi
+  done
+  echo "== symlinks =="
+  # Resolve the real target: stow may "fold" a whole dir into one symlink, so a
+  # leaf file can be real yet still live inside the repo. Check resolution.
+  for f in ~/.zshrc ~/.config/tmux/tmux.conf ~/.config/starship.toml ~/.config/aerospace/aerospace.toml; do
+    local rp; rp=$(readlink -f "$f" 2>/dev/null || true)
+    if [[ -n "$rp" && "$rp" == "$DOTFILES"/* ]]; then echo -e "  ${GREEN}✓${NC} $f"
+    else echo -e "  ${YELLOW}!${NC} $f (not linked into repo)"; fi
+  done
+  echo "== permissions =="
+  if command -v aerospace >/dev/null; then
+    aerospace list-workspaces --focused >/dev/null 2>&1 \
+      && echo -e "  ${GREEN}✓${NC} AeroSpace has Accessibility" \
+      || echo -e "  ${YELLOW}!${NC} AeroSpace not responding — grant Accessibility in System Settings"
+  fi
+  echo "== secret leak scan (tracked files) =="
+  if git -C "$DOTFILES" rev-parse --git-dir >/dev/null 2>&1; then
+    if git -C "$DOTFILES" grep -nIE '(sk-[A-Za-z0-9]{20,}|sct_[a-z]{2}_|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' -- . >/dev/null 2>&1; then
+      echo -e "  ${RED}✗${NC} possible secret found in tracked files!"; ok=1
+    else echo -e "  ${GREEN}✓${NC} no obvious secrets in tracked files"; fi
+  else
+    echo -e "  ${YELLOW}!${NC} $DOTFILES is not a git repo yet (run 'git init' to enable backup + scan)"
+  fi
+  return $ok
+}
+
+# ---- agent fleet: generalize tmux-peel2 ----
+_main_root() { git worktree list 2>/dev/null | head -1 | awk '{print $1}'; }
+_container() { dirname "$(_main_root)"; }
+_session()   { basename "$(_container)"; }
+
+cmd_agents() {
+  local sub="${1:-}"; shift || true
+  case "$sub" in
+    up)
+      local n="${1:-5}"; local session; session=$(_session)
+      local container; container=$(_container); local main; main=$(basename "$(_main_root)")
+      cd "$(_main_root)"
+      for i in $(seq 1 "$n"); do
+        [[ -d "$container/p$i" ]] || wt new "p$i" || true
+      done
+      if tmux has-session -t "$session" 2>/dev/null; then tmux attach -t "$session"; return; fi
+      tmux new-session -d -s "$session" -n "p1" -c "$container/p1"
+      for i in $(seq 2 "$n"); do tmux new-window -t "$session" -n "p$i" -c "$container/p$i"; done
+      tmux new-window -t "$session" -n "$main" -c "$(_main_root)"
+      for w in $(seq 1 "$n" | sed 's/^/p/') "$main"; do
+        local left; left=$(tmux list-panes -t "$session:$w" -F '#{pane_id}')
+        local dir="$container/$w"; [[ "$w" == "$main" ]] && dir="$(_main_root)"
+        tmux split-window -h -t "$left" -c "$dir"
+        local right; right=$(tmux list-panes -t "$session:$w" -F '#{pane_id}' | grep -v "$left")
+        tmux send-keys -t "$right" "dev" Enter
+        tmux send-keys -t "$left" "claude" Enter
+      done
+      tmux select-window -t "$session:p1"; tmux attach -t "$session"
+      ;;
+    ls)     tmux list-windows -t "$(_session)" 2>/dev/null || echo "no fleet running" ;;
+    attach) tmux select-window -t "$(_session):p${1:?usage: dot agents attach N}"; tmux attach -t "$(_session)" ;;
+    diff)   git -C "$(_container)/p${1:?usage: dot agents diff N}" diff ;;
+    down)   tmux kill-session -t "$(_session)" 2>/dev/null && info "fleet down" || warn "no session" ;;
+    *) echo "usage: dot agents {up [N]|ls|attach N|diff N|down}" >&2; exit 1 ;;
+  esac
+}
+
+cmd_help() {
+  cat <<'EOF'
+dot — dotfiles control
+
+  dot update            pull + brew bundle + restow + mise + nvim sync
+  dot doctor            health check (tools, symlinks, permissions, leaks)
+  dot edit              open the dotfiles repo in $EDITOR
+  dot agents up [N]     spin up N (default 5) worktree agents in tmux
+  dot agents ls         list the running fleet
+  dot agents attach N   jump to agent pN
+  dot agents diff N     show agent pN's changes
+  dot agents down       tear the fleet down
+
+navigation
+  alt+hjkl              move between OS windows (AeroSpace)
+  Ctrl+hjkl (Caps+hjkl) move between tmux panes / nvim splits (smart-splits)
+
+worktrees
+  wt new pN [base]      create a worktree (branch pN, PORT=3000+N via .envrc)
+  workon <sc-id> [desc] start a task branch, rename the tmux window
+  finish-task           reset worktree to main, drop branch, mark <ready>
+  web                   open localhost:300N for the current worktree
+
+secrets
+  secret get|set|rm <key>       Keychain-backed (op:// refs use 1Password)
+  secret run K=VAR -- cmd...     run a command with secrets exported
+EOF
+}
+
+case "${1:-help}" in
+  update) cmd_update ;;
+  doctor) cmd_doctor ;;
+  agents) shift; cmd_agents "$@" ;;
+  edit)   ${EDITOR:-nvim} "$DOTFILES" ;;
+  help|-h|--help) cmd_help ;;
+  *) err "unknown command: $1"; cmd_help; exit 1 ;;
+esac

@@ -1,0 +1,8 @@
+# Global runtime versions. Per-project `.mise.toml` / `.tool-versions` override.
+[tools]
+ruby = "3.4"
+node = "lts"
+
+[settings]
+# Faster, quieter installs; trust project configs under ~/relay-commerce.
+experimental = true

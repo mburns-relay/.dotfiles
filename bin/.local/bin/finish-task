@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+log_info() { echo -e "${GREEN}→${NC} $1"; }
+log_warn() { echo -e "${YELLOW}!${NC} $1"; }
+log_error() { echo -e "${RED}✗${NC} $1"; }
+
+worktree_path=$(git rev-parse --show-toplevel 2>/dev/null)
+if [[ -z "$worktree_path" ]]; then
+  log_error "Not in a git repository"; exit 1
+fi
+dir_name=$(basename "$worktree_path")
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+worktree_count=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$worktree_count" -gt 1 ]]; then base_branch="$dir_name"; else base_branch="main"; fi
+
+if [[ "$current_branch" == "$base_branch" ]]; then
+  log_warn "Already on base branch ($base_branch)"
+else
+  if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+    log_error "Uncommitted changes present. Commit or stash first."; exit 1
+  fi
+fi
+
+log_info "Fetching origin..."
+git fetch origin main
+log_info "Checking out $base_branch branch..."
+git checkout "$base_branch"
+log_info "Resetting $base_branch to origin/main..."
+git reset --hard origin/main
+
+if [[ "$current_branch" != "$base_branch" ]]; then
+  log_info "Deleting branch $current_branch..."
+  git branch -D "$current_branch" 2>/dev/null || log_warn "Could not delete $current_branch"
+fi
+
+if [[ -n "${TMUX:-}" ]]; then
+  log_info "Renaming tmux window to <ready>..."
+  tmux rename-window -t "$TMUX_PANE" "<ready>"
+fi
+log_info "Done! Ready for new task on $base_branch."
