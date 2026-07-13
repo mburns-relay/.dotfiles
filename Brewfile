@@ -13,6 +13,7 @@ brew "mise"                    # runtimes: ruby, node, etc.
 brew "starship"                # prompt
 brew "tmux"                    # multiplexer
 brew "neovim"                  # editor
+brew "tree-sitter"             # nvim-treesitter (main) needs the CLI
 brew "git"
 brew "gh"                      # GitHub CLI
 brew "jq"
