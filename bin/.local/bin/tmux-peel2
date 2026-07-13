@@ -39,7 +39,6 @@ for win in p2 p3 p4 p5; do
 done
 
 tmux new-window -t "$SESSION" -n peel2-rails -c "$BASE_DIR/peel2-rails"
-tmux new-window -t "$SESSION" -n peel-airflow -c "$BASE_DIR/peel-airflow"
 
 for win in p1 p2 p3 p4 p5 peel2-rails; do
   left=$(tmux list-panes -t "$SESSION:$win" -F '#{pane_id}')
