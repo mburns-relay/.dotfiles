@@ -58,6 +58,15 @@ on run argv
   set anyDev to "localhost:300"
   set anyDevB to "127.0.0.1:300"
 
+  -- Remember who's frontmost so we can hand focus straight back afterwards;
+  -- reordering Chrome's tabs otherwise pulls it in front of the terminal.
+  set prevApp to missing value
+  if not doFocus then
+    try
+      tell application "System Events" to set prevApp to name of first application process whose frontmost is true
+    end try
+  end if
+
   tell application "Google Chrome"
     if (count of windows) = 0 then make new window
 
@@ -117,9 +126,14 @@ on run argv
       end if
     end if
 
-    set index of devWin to 1
     if doFocus then activate
   end tell
+
+  if doFocus is false and prevApp is not missing value then
+    try
+      tell application "System Events" to set frontmost of (first application process whose name is prevApp) to true
+    end try
+  end if
 end run
 APPLESCRIPT
 
