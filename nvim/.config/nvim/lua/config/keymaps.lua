@@ -18,6 +18,11 @@ map("n", "<leader>h", fzf("oldfiles"), { desc = "History" })
 map("n", "<leader>t", fzf("files"), { desc = "Find files" })
 map("n", "<leader>b", fzf("buffers"), { desc = "Buffers" })
 
+-- NERDTree-style file explorer (snacks.nvim explorer = LazyVim's built-in tree).
+-- ,n toggles the side panel; ,N reveals the current file in it (NERDTreeFind).
+map("n", "<leader>n", function() require("snacks").explorer() end, { desc = "Explorer (toggle)" })
+map("n", "<leader>N", function() require("snacks").explorer.reveal() end, { desc = "Explorer (reveal file)" })
+
 -- RSpec runner (old: ,sf ,sl ,st)
 map("n", "<leader>sf", function() require("config.rspec").file() end, { desc = "RSpec: current file" })
 map("n", "<leader>sl", function() require("config.rspec").line() end, { desc = "RSpec: current line" })
