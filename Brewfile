@@ -46,6 +46,41 @@ cask "karabiner-elements"      # Caps -> Esc/Ctrl
 cask "ghostty"
 cask "font-jetbrains-mono-nerd-font"
 
+# ---- Browser (used by bin/tmux-agent-jump to sync the localhost:300N tab) ----
+cask "google-chrome"
+
 # ---- Optional: parallel-agent orchestration TUI ----
 # Runs on the same tmux + worktree substrate as `dot agents`; opt-in.
 # brew "claude-squad"
+
+# ===========================================================================
+# relay / peel2 work — only needed on a machine that does peel2 development.
+# Safe to delete this whole block on a personal-only machine.
+# ===========================================================================
+
+# ---- AWS / cloud ----
+brew "awscli"
+brew "saml2aws"                       # SAML -> AWS temp creds
+brew "docker-credential-helper-ecr"   # docker pull/push against ECR
+cask "session-manager-plugin"         # `aws ssm start-session`
+
+# ---- Data / warehouse ----
+brew "postgresql@14", restart_service: :changed
+brew "redis", restart_service: :changed
+brew "libpq"                          # psql / pg gem headers
+brew "duckdb"
+brew "dolt"                           # git-for-data
+brew "csvlens"                        # CLI csv viewer
+brew "temporal"                       # workflow engine CLI
+brew "astro"                          # Astronomer / Airflow CLI
+
+# ---- i18n / secrets ----
+brew "phrase-cli"                     # translation sync
+brew "age"                            # file encryption
+brew "sops"                           # encrypted config (age/kms backend)
+
+# ---- Optional: nwave workflow that powers the mb-* Claude skills ----
+# Requires a Homebrew with `uv`/`npm` bundle support. Uncomment to enable.
+# uv  "nwave-ai"
+# npm "@shopify/cli"
+# npm "@shopify/theme"
