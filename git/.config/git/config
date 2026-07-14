@@ -43,9 +43,22 @@
 
 [alias]
 	st = status -sb
+	s = status
 	co = checkout
+	nb = checkout -b
 	br = branch
+	b = branch -v
+	ci = commit
+	c = commit -m
+	ca = commit -am
+	cp = cherry-pick -x
+	d = diff
+	dc = diff --cached
+	l = log --graph --date=short
 	lg = log --oneline --graph --decorate --all
 	last = log -1 HEAD --stat
+	t = tag -n
 	unstage = reset HEAD --
+	uncommit = reset --soft HEAD^
 	amend = commit --amend --no-edit
+	recent-branches = !git for-each-ref --count=15 --sort=-committerdate refs/heads/ --format='%(refname:short)'

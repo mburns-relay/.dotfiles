@@ -3,4 +3,11 @@
 for _f in "${XDG_CONFIG_HOME:-$HOME/.config}"/zsh/*.zsh(N); do
   source "$_f"
 done
+
+# Machine-local, untracked drop-ins (YADR's ~/.zsh.after equivalent).
+# Anything you put in ~/.config/zsh/local/*.zsh is sourced last and is
+# gitignored — use it for host-specific overrides and secrets you don't commit.
+for _f in "${XDG_CONFIG_HOME:-$HOME/.config}"/zsh/local/*.zsh(N); do
+  source "$_f"
+done
 unset _f

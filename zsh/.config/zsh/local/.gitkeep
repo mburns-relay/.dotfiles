@@ -1,0 +1,3 @@
+# Machine-local zsh drop-ins (YADR's ~/.zsh.after equivalent).
+# Any *.zsh file here is sourced last by ~/.zshrc and is gitignored,
+# so it's the place for host-specific overrides and uncommitted secrets.

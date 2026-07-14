@@ -11,6 +11,9 @@ secrets/**/*.rendered
 # Anything a tool might drop a token into:
 **/.claude/settings.local.json
 
+# === Machine-local zsh drop-ins (YADR .zsh.after equivalent) — untracked ===
+zsh/.config/zsh/local/*.zsh
+
 # === Generated / vendored (installed by bootstrap, not tracked) ===
 tmux/.config/tmux/plugins/
 
