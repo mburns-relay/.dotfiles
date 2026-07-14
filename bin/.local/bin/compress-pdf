@@ -1,0 +1,48 @@
+#!/bin/bash
+
+if [ $# -eq 0 ]; then
+    echo "Usage: compress-pdf <filename.pdf>"
+    exit 1
+fi
+
+INPUT_FILE="$1"
+OUTPUT_FILE="${INPUT_FILE%.pdf}_compressed.pdf"
+
+if [ ! -f "$INPUT_FILE" ]; then
+    echo "Error: File '$INPUT_FILE' not found"
+    exit 1
+fi
+
+/opt/homebrew/opt/ghostscript/bin/gs \
+    -sDEVICE=pdfwrite \
+    -dCompatibilityLevel=1.4 \
+    -dPDFSETTINGS=/screen \
+    -dDownsampleColorImages=true \
+    -dColorImageResolution=30 \
+    -dGrayImageResolution=30 \
+    -dMonoImageResolution=30 \
+    -dColorImageDownsampleThreshold=1.0 \
+    -dGrayImageDownsampleThreshold=1.0 \
+    -dMonoImageDownsampleThreshold=1.0 \
+    -dCompressPages=true \
+    -dAutoFilterColorImages=false \
+    -dColorImageFilter=/DCTEncode \
+    -dAutoFilterGrayImages=false \
+    -dGrayImageFilter=/DCTEncode \
+    -dJPEGQ=10 \
+    -dColorConversionStrategy=/Gray \
+    -dProcessColorModel=/DeviceGray \
+    -dNOPAUSE \
+    -dQUIET \
+    -dBATCH \
+    -sOutputFile="$OUTPUT_FILE" \
+    "$INPUT_FILE"
+
+if [ $? -eq 0 ]; then
+    ORIGINAL_SIZE=$(ls -lh "$INPUT_FILE" | awk '{print $5}')
+    NEW_SIZE=$(ls -lh "$OUTPUT_FILE" | awk '{print $5}')
+    echo "✓ Compressed: $INPUT_FILE ($ORIGINAL_SIZE) → $OUTPUT_FILE ($NEW_SIZE)"
+else
+    echo "✗ Compression failed"
+    exit 1
+fi
