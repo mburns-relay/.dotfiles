@@ -30,3 +30,5 @@ alias brewu='brew update && brew upgrade && brew cleanup && brew doctor'
 # --- Config meta (YADR-style) ---
 alias ae="${EDITOR:-nvim} ${XDG_CONFIG_HOME:-$HOME/.config}/zsh"  # alias edit (opens the zsh config dir)
 alias ar='source ~/.zshrc'                                        # alias reload
+
+alias vim='nvim'
