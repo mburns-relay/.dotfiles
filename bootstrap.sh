@@ -73,6 +73,13 @@ else
   info "wrote $SUDO_LOCAL"
 fi
 
+# 3b. macOS defaults ----------------------------------------------------------
+step "macOS defaults"
+# Auto-hide the native menu bar so sketchybar (position=top) owns the top strip
+# instead of overlapping it. The native bar still slides in on hover.
+run "defaults write NSGlobalDomain _HIHideMenuBar -bool true"
+info "native menu bar set to auto-hide (full effect after next login)"
+
 # 4. Stow topic packages ------------------------------------------------------
 step "Linking dotfiles (stow)"
 for p in $(packages); do
