@@ -1,6 +1,8 @@
-[user]
-	name = Mark Burns
-	email = mburns-relay@users.noreply.github.com
+# Machine-local identity (name / email / signing key) lives here, untracked.
+# Copy config.local.example -> config.local and fill it in (bootstrap does this
+# too). Keeps a personal/work email out of the committed, potentially public repo.
+[include]
+	path = ~/.config/git/config.local
 
 [init]
 	defaultBranch = main

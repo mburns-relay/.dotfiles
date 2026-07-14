@@ -8,3 +8,4 @@ docs
 \.gitignore
 \.stow-local-ignore
 \.github
+config\.local\.example

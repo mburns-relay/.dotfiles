@@ -3,6 +3,7 @@
 # NOTE: do NOT use a bare `*.local` — it also matches the XDG `.local/` dir and
 # would exclude bin/.local/bin/*. Keep secret patterns specific.
 *.local.sh
+git/.config/git/config.local
 .env
 .env.*
 !.env.example
