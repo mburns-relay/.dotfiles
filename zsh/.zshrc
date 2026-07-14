@@ -11,3 +11,6 @@ for _f in "${XDG_CONFIG_HOME:-$HOME/.config}"/zsh/local/*.zsh(N); do
   source "$_f"
 done
 unset _f
+
+# PostgreSQL 16 (keg-only) CLI tools
+export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
