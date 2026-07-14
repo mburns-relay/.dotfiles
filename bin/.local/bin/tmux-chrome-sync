@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# tmux-chrome-sync [window-index window-name pane-current-path]
+#
+# Sync a Chrome tab to the dev-server port of the CURRENT tmux window and pin it
+# to a fixed tab position, so Chrome's Cmd-N lines up with the worktree:
+#
+#   worktree p1..p5           ->  localhost:3001..3005  ->  Chrome tab 1..5
+#   main repo peel2-rails     ->  localhost:3000        ->  Chrome LAST tab
+#
+# The worktree is taken from the active pane's directory (first path component
+# under ~/relay-commerce), so it survives window renames (workon/finish-task),
+# window reordering, and cd'ing into a subdirectory.
+#
+# Driven by the tmux `session-window-changed` hook (args passed in), so it fires
+# on every window switch (prefix numbers, prefix n/p, mouse tab click). Callable
+# with no args from the CLI, in which case the current window is queried.
+#
+# The Chrome tab is switched in the BACKGROUND; set AGENT_JUMP_FOCUS=1 to raise
+# Chrome instead. Chrome is never launched if it isn't already running, and only
+# windows under ~/relay-commerce sync (so unrelated sessions are untouched).
+
+set -euo pipefail
+
+if [ "$#" -eq 0 ]; then
+  [ -n "${TMUX:-}" ] || exit 0
+  path=$(tmux display-message -p '#{pane_current_path}')
+else
+  path="${3:-}"
+fi
+
+case "$path" in
+  "$HOME/relay-commerce/"*) rel="${path#"$HOME"/relay-commerce/}"; worktree="${rel%%/*}" ;;
+  *) exit 0 ;;
+esac
+
+if [ "$worktree" = "peel2-rails" ]; then
+  port=3000
+  slot=0            # 0 => last tab
+elif [[ "$worktree" =~ ^p([1-5])$ ]]; then
+  port=$((3000 + BASH_REMATCH[1]))
+  slot="${BASH_REMATCH[1]}"
+else
+  exit 0
+fi
+
+pgrep -x "Google Chrome" >/dev/null 2>&1 || exit 0
+
+focus="${AGENT_JUMP_FOCUS:-0}"
+
+osascript - "$port" "$slot" "$focus" <<'APPLESCRIPT' >/dev/null 2>&1 || true
+on run argv
+  set thePort to item 1 of argv as integer
+  set theSlot to item 2 of argv as integer   -- 1..5, or 0 meaning "last"
+  set doFocus to (item 3 of argv is "1")
+  set needleA to "localhost:" & thePort
+  set needleB to "127.0.0.1:" & thePort
+  set fallbackURL to "http://localhost:" & thePort & "/"
+  set anyDev to "localhost:300"
+  set anyDevB to "127.0.0.1:300"
+
+  tell application "Google Chrome"
+    if (count of windows) = 0 then make new window
+
+    -- Pick the window that already holds the dev tabs (most localhost:300x),
+    -- so tabs cluster in the one tiled next to the terminal. Fall back to front.
+    set devWin to front window
+    set bestCount to -1
+    repeat with w in windows
+      set c to 0
+      repeat with t in tabs of w
+        set u to URL of t
+        if (u contains anyDev) or (u contains anyDevB) then set c to c + 1
+      end repeat
+      if c > bestCount then
+        set bestCount to c
+        set devWin to w
+      end if
+    end repeat
+
+    -- Locate this port's tab within that window; remember its URL to preserve
+    -- the current path if we have to recreate it at a different slot.
+    set foundIdx to 0
+    set foundURL to fallbackURL
+    set i to 0
+    repeat with t in tabs of devWin
+      set i to i + 1
+      set u to URL of t
+      if (u contains needleA) or (u contains needleB) then
+        set foundIdx to i
+        set foundURL to u
+        exit repeat
+      end if
+    end repeat
+
+    set tabCount to count of tabs of devWin
+    if theSlot is 0 then
+      set target to tabCount
+      if foundIdx is 0 then set target to tabCount + 1
+    else
+      set target to theSlot
+    end if
+
+    if foundIdx > 0 and foundIdx = target then
+      set active tab index of devWin to foundIdx
+    else
+      if foundIdx > 0 then
+        close tab foundIdx of devWin
+        set tabCount to tabCount - 1
+        if theSlot is 0 then set target to tabCount
+      end if
+      if target ≤ tabCount then
+        make new tab at (before tab target of devWin) with properties {URL:foundURL}
+        set active tab index of devWin to target
+      else
+        make new tab at end of tabs of devWin with properties {URL:foundURL}
+        set active tab index of devWin to (count of tabs of devWin)
+      end if
+    end if
+
+    set index of devWin to 1
+    if doFocus then activate
+  end tell
+end run
+APPLESCRIPT
+
+exit 0

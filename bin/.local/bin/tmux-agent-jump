@@ -1,72 +1,39 @@
 #!/usr/bin/env bash
-# tmux-agent-jump N
+# tmux-agent-jump N   (N = 0..5)
 #
-# Jump to agent window pN in the current tmux session AND sync a Chrome tab to
-# localhost:300N (p1 -> 3001, p2 -> 3002, ...). If a tab already points at that
-# port it is activated; otherwise a new tab is opened.
+# Select an agent window in the current tmux session by its WORKTREE, robust to
+# workon/finish-task renames and window reordering:
+#   1..5 -> the window whose active pane is in ~/relay-commerce/pN (fallback: index N)
+#   0    -> the window in ~/relay-commerce/peel2-rails (fallback: last window)
 #
-# By default the Chrome tab is switched in the BACKGROUND so focus stays in the
-# terminal. Set AGENT_JUMP_FOCUS=1 to bring Chrome to the foreground instead.
+# Selecting a window fires the `session-window-changed` hook, which runs
+# tmux-chrome-sync to sync the matching Chrome tab. See ~/.local/bin/tmux-chrome-sync.
 
 set -euo pipefail
 
 n="${1:-}"
 case "$n" in
-  [1-9]) ;;
-  *) echo "Usage: tmux-agent-jump <1-9>" >&2; exit 1 ;;
+  [0-5]) ;;
+  *) echo "Usage: tmux-agent-jump <0-5>" >&2; exit 1 ;;
 esac
 
-port=$((3000 + n))
+[ -n "${TMUX:-}" ] || exit 0
 
-# --- tmux: select window pN in the current session (if it exists) ------------
-if [ -n "${TMUX:-}" ]; then
-  if tmux list-windows -F '#{window_name}' | grep -qx "p${n}"; then
-    tmux select-window -t "p${n}"
-  fi
+if [ "$n" = 0 ]; then want="peel2-rails"; else want="p${n}"; fi
+
+win=$(tmux list-windows -F '#{window_index} #{pane_current_path}' | awk -v home="$HOME" -v want="$want" '
+  { path = $2; prefix = home "/relay-commerce/"
+    if (index(path, prefix) == 1) {
+      rest = substr(path, length(prefix) + 1)
+      split(rest, parts, "/")
+      if (parts[1] == want) { print $1; exit }
+    }
+  }')
+
+if [ -n "$win" ]; then
+  tmux select-window -t "$win"
+elif [ "$n" = 0 ]; then
+  tmux select-window -t "$(tmux list-windows -F '#{window_index}' | tail -1)"
+else
+  tmux select-window -t "$n"
 fi
-
-# --- Chrome: switch to / open a tab on localhost:PORT ------------------------
-focus="${AGENT_JUMP_FOCUS:-0}"
-
-osascript - "$port" "$focus" <<'APPLESCRIPT' >/dev/null 2>&1 || true
-on run argv
-  set thePort to item 1 of argv
-  set doFocus to (item 2 of argv is "1")
-  set needleA to "localhost:" & thePort
-  set needleB to "127.0.0.1:" & thePort
-  set newURL to "http://localhost:" & thePort & "/"
-
-  tell application "Google Chrome"
-    set foundWin to missing value
-    set foundIdx to 0
-    repeat with w in windows
-      set i to 0
-      repeat with t in tabs of w
-        set i to i + 1
-        set u to URL of t
-        if (u contains needleA) or (u contains needleB) then
-          set foundWin to w
-          set foundIdx to i
-          exit repeat
-        end if
-      end repeat
-      if foundIdx > 0 then exit repeat
-    end repeat
-
-    if foundIdx > 0 then
-      set active tab index of foundWin to foundIdx
-      set index of foundWin to 1
-    else
-      if (count of windows) = 0 then
-        make new window
-      end if
-      make new tab at end of tabs of front window with properties {URL:newURL}
-      set active tab index of front window to (count of tabs of front window)
-    end if
-
-    if doFocus then activate
-  end tell
-end run
-APPLESCRIPT
-
-exit 0
