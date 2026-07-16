@@ -14,7 +14,17 @@ dir_name=$(basename "$worktree_path")
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
 worktree_count=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
-if [[ "$worktree_count" -gt 1 ]]; then base_branch="$dir_name"; else base_branch="main"; fi
+if [[ "$worktree_count" -gt 1 ]]; then
+  main_worktree=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
+  main_worktree_name=$(basename "$main_worktree")
+  if [[ "$dir_name" == "$main_worktree_name" ]]; then
+    base_branch="main"
+  else
+    base_branch="$dir_name"
+  fi
+else
+  base_branch="main"
+fi
 
 if [[ "$current_branch" == "$base_branch" ]]; then
   log_warn "Already on base branch ($base_branch)"
