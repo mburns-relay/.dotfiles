@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# chrome-tmux-sync [--once]
+#
+# The INVERSE of tmux-chrome-sync: when you switch to a dev-server tab in Chrome
+# (localhost:300x / 127.0.0.1:300x), select the matching tmux window so the
+# terminal is already on that worktree when you switch back:
+#
+#   localhost:3000 -> peel2-rails   (tmux-agent-jump 0)
+#   localhost:300N -> pN            (tmux-agent-jump N)   for N in 1..5
+#
+# macOS emits no "active tab changed" event, so this polls — but as ONE
+# long-lived osascript process (a tick is a single Apple Event + delay, never a
+# process spawn), gated on Chrome being frontmost. While the terminal is
+# frontmost it idles at a slow poll; the tmux window is only selected when the
+# mapped port actually CHANGES. So the forward path's background tab switches
+# (which happen with the terminal frontmost) never bounce back here.
+#
+# tmux-agent-jump owns the port/worktree -> window mapping; we just hand it N and
+# it self-resolves the attached session (we run outside tmux). select-window does
+# not change the frontmost macOS app, so Chrome stays focused.
+#
+# Started from tmux.conf via `run-shell -b`, so its Apple Events inherit the tmux
+# server's Automation grant (the same one that lets tmux-chrome-sync drive
+# Chrome). A launchd agent CANNOT do this — its osascript is silently denied
+# Automation access by TCC. The mkdir lock below keeps it a singleton across
+# config reloads and extra sessions.
+#
+#   --once   query Chrome's current tab and jump once, then exit (skips the
+#            frontmost gate and the singleton lock, so it works run by hand). For testing.
+
+set -euo pipefail
+
+JUMP="$HOME/.local/bin/tmux-agent-jump"
+mode="loop"
+[ "${1:-}" = "--once" ] && mode="once"
+
+if [ "$mode" = "loop" ]; then
+  LOCKDIR="${TMPDIR:-/tmp}/chrome-tmux-sync.lock"
+  if ! mkdir "$LOCKDIR" 2>/dev/null; then
+    if kill -0 "$(cat "$LOCKDIR/pid" 2>/dev/null)" 2>/dev/null; then
+      exit 0        # a live instance already holds the lock
+    fi
+  fi
+  echo $$ > "$LOCKDIR/pid"   # fresh lock, or reclaimed from a dead holder
+fi
+
+# exec keeps this PID, so $LOCKDIR/pid tracks the long-lived osascript for the
+# kill -0 staleness check above.
+exec osascript - "$JUMP" "$mode" <<'APPLESCRIPT'
+on run argv
+  set jumpPath to item 1 of argv
+  set theMode to item 2 of argv
+
+  if theMode is "once" then
+    set n to currentN()
+    if n is not missing value then dispatch(jumpPath, n)
+    return
+  end if
+
+  set lastN to -99
+  repeat
+    set frontApp to ""
+    try
+      tell application "System Events" to set frontApp to name of first application process whose frontmost is true
+    end try
+    if frontApp is "Google Chrome" then
+      set n to currentN()
+      if n is not missing value and n is not lastN then
+        set lastN to n
+        dispatch(jumpPath, n)
+      end if
+      delay 0.3
+    else
+      delay 1.5
+    end if
+  end repeat
+end run
+
+on currentN()
+  set theURL to ""
+  try
+    tell application "Google Chrome"
+      if (count of windows) > 0 then set theURL to URL of active tab of front window
+    end tell
+  end try
+  if theURL is "" then return missing value
+  return portToN(theURL)
+end currentN
+
+on portToN(u)
+  repeat with needle in {"localhost:", "127.0.0.1:"}
+    set ndl to (needle as text)
+    if u contains ndl then
+      set oldTID to AppleScript's text item delimiters
+      set AppleScript's text item delimiters to ndl
+      set tailStr to text item 2 of u
+      set AppleScript's text item delimiters to oldTID
+      set portStr to ""
+      repeat with i from 1 to (length of tailStr)
+        set c to character i of tailStr
+        if c is in "0123456789" then
+          set portStr to portStr & c
+        else
+          exit repeat
+        end if
+      end repeat
+      if portStr is not "" then
+        set p to (portStr as integer)
+        if p >= 3000 and p <= 3005 then return p - 3000
+      end if
+    end if
+  end repeat
+  return missing value
+end portToN
+
+on dispatch(jumpPath, n)
+  try
+    do shell script "PATH=/opt/homebrew/bin:$PATH " & quoted form of jumpPath & " " & n
+  end try
+  log "chrome-tmux-sync: jump " & n
+end dispatch
+APPLESCRIPT

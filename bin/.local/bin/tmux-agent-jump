@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # tmux-agent-jump N   (N = 0..5)
 #
-# Select an agent window in the current tmux session by its WORKTREE, robust to
-# workon/finish-task renames and window reordering:
+# Select an agent window by its WORKTREE, robust to workon/finish-task renames
+# and window reordering:
 #   1..5 -> the window whose active pane is in ~/relay-commerce/pN (fallback: index N)
 #   0    -> the window in ~/relay-commerce/peel2-rails (fallback: last window)
+#
+# Inside tmux ($TMUX set) it acts on the current session. Called from OUTSIDE
+# tmux (e.g. the chrome-tmux-sync reverse watcher), it targets the most-recently
+# active attached client's session; with no attached client it is a no-op. That
+# reverse path is why the session is addressed explicitly via "$sess" below.
 #
 # Selecting a window fires the `session-window-changed` hook, which runs
 # tmux-chrome-sync to sync the matching Chrome tab. See ~/.local/bin/tmux-chrome-sync.
@@ -17,11 +22,19 @@ case "$n" in
   *) echo "Usage: tmux-agent-jump <0-5>" >&2; exit 1 ;;
 esac
 
-[ -n "${TMUX:-}" ] || exit 0
+if [ -n "${TMUX:-}" ]; then
+  sess=""
+else
+  sess=$(tmux list-clients -F '#{client_activity} #{client_session}' 2>/dev/null \
+    | sort -rn | head -1 | cut -d' ' -f2-)
+  [ -n "$sess" ] || exit 0
+  sess="${sess}:"
+fi
 
 if [ "$n" = 0 ]; then want="peel2-rails"; else want="p${n}"; fi
 
-win=$(tmux list-windows -F '#{window_index} #{pane_current_path}' | awk -v home="$HOME" -v want="$want" '
+win=$(tmux list-windows ${sess:+-t "${sess%:}"} -F '#{window_index} #{pane_current_path}' \
+  | awk -v home="$HOME" -v want="$want" '
   { path = $2; prefix = home "/relay-commerce/"
     if (index(path, prefix) == 1) {
       rest = substr(path, length(prefix) + 1)
@@ -31,9 +44,10 @@ win=$(tmux list-windows -F '#{window_index} #{pane_current_path}' | awk -v home=
   }')
 
 if [ -n "$win" ]; then
-  tmux select-window -t "$win"
+  tmux select-window -t "${sess}${win}"
 elif [ "$n" = 0 ]; then
-  tmux select-window -t "$(tmux list-windows -F '#{window_index}' | tail -1)"
+  last=$(tmux list-windows ${sess:+-t "${sess%:}"} -F '#{window_index}' | tail -1)
+  tmux select-window -t "${sess}${last}"
 else
-  tmux select-window -t "$n"
+  tmux select-window -t "${sess}${n}"
 fi
