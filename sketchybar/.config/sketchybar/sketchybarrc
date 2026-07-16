@@ -25,7 +25,7 @@ sketchybar --default "${default[@]}"
 
 # --- AeroSpace workspaces (left) ---
 sketchybar --add event aerospace_workspace_change
-for wid in 1 2 3 4 5 6 A B S; do
+for wid in 1 2 3 4; do
   sketchybar --add item "space.$wid" left \
     --set "space.$wid" label="$wid" \
       click_script="aerospace workspace $wid" \
