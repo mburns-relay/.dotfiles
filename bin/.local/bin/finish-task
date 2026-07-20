@@ -36,6 +36,19 @@ fi
 
 log_info "Fetching origin..."
 git fetch origin main
+occupant=$(git worktree list --porcelain | awk -v b="refs/heads/$base_branch" '
+  /^worktree /{p=$2}
+  /^branch /{ if ($2==b) print p }
+')
+if [[ -n "$occupant" && "$occupant" != "$worktree_path" ]]; then
+  if [[ -n "$(git -C "$occupant" status --porcelain)" ]]; then
+    log_error "$base_branch is checked out in $occupant, which has uncommitted changes. Clean it first."; exit 1
+  fi
+  home=$(basename "$occupant")
+  log_info "Freeing $base_branch from $home (parking $home on its home branch)..."
+  git -C "$occupant" checkout "$home" 2>/dev/null || git -C "$occupant" checkout -b "$home"
+fi
+
 log_info "Checking out $base_branch branch..."
 git checkout "$base_branch"
 log_info "Resetting $base_branch to origin/main..."
