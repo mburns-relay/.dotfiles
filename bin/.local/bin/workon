@@ -27,15 +27,11 @@ fi
 dir_name=$(basename "$worktree_path")
 
 worktree_count=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
+is_primary=false
 if [[ "$worktree_count" -gt 1 ]]; then
   main_worktree=$(git worktree list 2>/dev/null | head -1 | awk '{print $1}')
   main_worktree_name=$(basename "$main_worktree")
-  if [[ "$dir_name" == "$main_worktree_name" ]]; then
-    other_worktrees=$(git worktree list 2>/dev/null | tail -n +2 | while read -r path _; do basename "$path"; done | tr '\n' ', ' | sed 's/,$//')
-    log_error "Must be in a worktree, not the main repo (currently in: $dir_name)"
-    log_warn "Use one of: $other_worktrees"
-    exit 1
-  fi
+  [[ "$dir_name" == "$main_worktree_name" ]] && is_primary=true
 fi
 
 if ! git diff-index --quiet HEAD -- 2>/dev/null; then
@@ -49,7 +45,7 @@ log_info "Fetching origin/main..."
 git fetch origin main
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
-if [[ "$worktree_count" -gt 1 ]]; then base_branch="$dir_name"; else base_branch="main"; fi
+if [[ "$worktree_count" -gt 1 && "$is_primary" == false ]]; then base_branch="$dir_name"; else base_branch="main"; fi
 
 if [[ "$current_branch" != "$base_branch" && "$current_branch" != "main" ]]; then
   log_warn "Currently on branch '$current_branch', switching to '$base_branch' first"
