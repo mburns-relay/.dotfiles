@@ -4,6 +4,7 @@ LICENSE
 Brewfile
 bootstrap\.sh
 docs
+demo
 \.git
 \.gitignore
 \.stow-local-ignore

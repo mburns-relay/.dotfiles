@@ -11,7 +11,7 @@ err()  { echo -e "${RED}dot:${NC} $*" >&2; }
 # Stow packages = visible top-level dirs, minus repo meta (hidden dirs excluded).
 packages() {
   find "$DOTFILES" -mindepth 1 -maxdepth 1 -type d \
-    ! -name '.*' ! -name 'docs' -exec basename {} \;
+    ! -name '.*' ! -name 'docs' ! -name 'demo' -exec basename {} \;
 }
 
 cmd_update() {
@@ -96,6 +96,8 @@ cmd_agents() {
   esac
 }
 
+cmd_demo() { exec "$DOTFILES/demo/demo.sh" "$@"; }
+
 cmd_help() {
   cat <<'EOF'
 dot — dotfiles control
@@ -103,6 +105,7 @@ dot — dotfiles control
   dot update            pull + brew bundle + restow + mise + nvim sync
   dot doctor            health check (tools, symlinks, permissions, leaks)
   dot edit              open the dotfiles repo in $EDITOR
+  dot demo [scene]      guided tour (nvim slides + live terminal demos)
   dot agents up [N]     spin up N (default 5) worktree agents in tmux
   dot agents ls         list the running fleet
   dot agents attach N   jump to agent pN
@@ -130,6 +133,7 @@ case "${1:-help}" in
   doctor) cmd_doctor ;;
   agents) shift; cmd_agents "$@" ;;
   edit)   ${EDITOR:-nvim} "$DOTFILES" ;;
+  demo)   shift; cmd_demo "$@" ;;
   help|-h|--help) cmd_help ;;
   *) err "unknown command: $1"; cmd_help; exit 1 ;;
 esac

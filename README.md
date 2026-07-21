@@ -30,6 +30,8 @@ and the code disagree, the README is the bug report.
   it counts.
 - **Managed with GNU Stow** (plain symlinks you can read) + a thin chezmoi layer
   only for the few templated/secret-injected files.
+- **A guided tour built in:** `dot demo` — self-paced nvim highlight slides that
+  drop into live terminal demos of each feature.
 
 ---
 
@@ -122,6 +124,7 @@ easy to find and easy to delete. Each topic is a self-contained Stow package.
 ├── aws/                 ← granted config, profile helpers
 ├── secrets/             ← chezmoi templates ONLY (no plaintext secrets)
 ├── macos/               ← defaults.sh (system tweaks)
+├── demo/                ← `dot demo` — nvim slides + live terminal tour
 └── docs/                ← per-topic notes + the keybinding cheatsheet
 ```
 
@@ -139,6 +142,7 @@ dot update     # git pull, brew bundle, restow, mise install, nvim sync
 dot help       # searchable cheatsheet of keybindings & commands
 dot doctor     # verify the install; report anything missing/broken
 dot edit       # open ~/.dotfiles in Neovim
+dot demo       # guided tour: nvim highlight slides + live terminal demos
 dot agents ... # manage the parallel-agent fleet (see below)
 ```
 
