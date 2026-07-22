@@ -38,7 +38,7 @@ and the code disagree, the README is the bug report.
 ## Quick start
 
 ```sh
-git clone https://github.com/<you>/dotfiles ~/.dotfiles
+git clone https://github.com/mburns-relay/.dotfiles ~/.dotfiles
 cd ~/.dotfiles
 ./bootstrap.sh
 ```

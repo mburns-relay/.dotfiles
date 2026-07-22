@@ -17,6 +17,6 @@
 
 # thanks 👋
 
-    github.com/<you>/dotfiles
+    github.com/mburns-relay/.dotfiles
 
     q to exit →
